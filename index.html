@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Найдите проблему в схеме данных</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --accent:#7C6FF5; --accent-hover:#6658E0; --accent-light:#F1EEFE; --accent-light-border:#DCD5FC;
+    --ink:#1F2430; --ink-soft:#4B5160; --gray:#6B7280; --border:#E6E7EC;
+    --good:#2F9E5C; --good-bg:#EAF8F0; --good-border:#BEE9D0;
+    --bad-bg:#FDEEEE; --bad-border:#F5C9C7; --bad-text:#C13A34;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#fff; color:var(--ink); line-height:1.5; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px; margin:0 auto; padding:36px 24px 60px;}
+  .tag-row{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .tag{font-size:12.5px; font-weight:600; padding:5px 12px; border-radius:999px; background:var(--accent-light); color:var(--accent-hover); border:1px solid var(--accent-light-border);}
+  .tag.muted{background:#F5F5F7; color:var(--gray); border-color:#E6E7EC;}
+  h1{font-size:26px; font-weight:800; margin:0 0 10px; letter-spacing:-0.01em;}
+  .lead{color:var(--ink-soft); font-size:15px; margin:0 0 26px; max-width:620px;}
+  .doc-card{border:1px solid var(--border); border-radius:14px; box-shadow:0 1px 2px rgba(20,20,43,0.04), 0 8px 24px rgba(20,20,43,0.05); overflow:hidden; background:#fff;}
+  .doc-header{background:#FAFAFC; border-bottom:1px solid var(--border); padding:14px 22px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--gray); display:flex; justify-content:space-between;}
+  .doc-body{padding:22px;}
+  .doc-title{font-size:14px; font-weight:700; color:var(--ink); margin:0 0 16px; padding-bottom:12px; border-bottom:1px solid var(--border);}
+  .col-block{display:flex; gap:14px; padding:13px 12px; border-radius:10px; border:1.5px solid transparent; cursor:pointer; transition:border-color .15s ease, background .15s ease; margin-bottom:4px; align-items:baseline;}
+  .col-block:hover:not(.locked){border-color:var(--accent-light-border); background:var(--accent-light);}
+  .col-name{font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink); flex-shrink:0; width:200px; font-weight:600;}
+  .col-type{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--gray); flex-shrink:0; width:120px;}
+  .col-sample{font-size:13px; color:var(--ink-soft);}
+  .col-block.correct{border-color:var(--good-border); background:var(--good-bg);}
+  .col-block.correct .col-name{color:var(--good);}
+  .col-block.wrong-flash{border-color:var(--bad-border); background:var(--bad-bg);}
+  .inline-hint{font-size:13px; color:var(--bad-text); margin-top:4px; display:none;}
+  .col-block.wrong-flash .inline-hint{display:block;}
+  .toolbar{display:flex; justify-content:space-between; align-items:center; margin-top:18px;}
+  .attempts{font-size:13px; color:var(--gray);}
+  .btn{background:none; border:1.5px solid var(--accent-light-border); color:var(--accent-hover); font-family:inherit; font-weight:600; font-size:13.5px; padding:9px 16px; border-radius:8px; cursor:pointer; transition:background .15s ease;}
+  .btn:hover{background:var(--accent-light);}
+  .btn.primary{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .btn.primary:hover{background:var(--accent-hover);}
+  .reveal{display:none; margin-top:24px; animation:fadein .3s ease;}
+  @keyframes fadein{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+  .reveal-card{border:1px solid var(--good-border); background:var(--good-bg); border-radius:14px; padding:22px 24px;}
+  .reveal-label{font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--good); margin-bottom:10px;}
+  .reveal-text{font-size:14.5px; color:var(--ink); margin:0 0 16px;}
+  .fix-box{background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px 16px; font-size:14px; margin-bottom:10px;}
+  .fix-box .label{font-size:12px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:0.02em; margin-bottom:6px;}
+  .fix-box.was{border-left:3px solid var(--bad-text);}
+  .fix-box.now{border-left:3px solid var(--good);}
+  .lesson-ref{font-size:13px; color:var(--ink-soft); margin-top:14px;}
+  .footer-btn{margin-top:22px;}
+  .col-head{display:flex; gap:14px; padding:0 12px 8px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--gray);}
+  .col-head span:nth-child(1){width:200px;}
+  .col-head span:nth-child(2){width:120px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tag-row">
+    <span class="tag">SA-I-006 · Хранение и обработка данных</span>
+    <span class="tag muted">Карточка 6 из 10</span>
+  </div>
+  <h1>Найдите проблему в схеме данных</h1>
+  <p class="lead">
+    Ниже — фрагмент таблицы <code>Orders</code> из схемы FoodMart, которую согласовали с
+    разработкой. На первый взгляд всё по делу: поля понятные, типы указаны. Но одно поле
+    создаст проблему уже на первом отчёте «сколько раз купили товар X». Кликните на поле,
+    которое вызывает вопросы.
+  </p>
+
+  <div class="doc-card">
+    <div class="doc-header">
+      <span>Orders_schema.sql</span>
+      <span>таблица Orders · 8 полей</span>
+    </div>
+    <div class="doc-body">
+      <p class="doc-title">Таблица Orders — фрагмент схемы</p>
+
+      <div class="col-head"><span>Поле</span><span>Тип</span><span>Пример значения</span></div>
+
+      <div class="col-block" data-correct="false" onclick="handleClick(this)">
+        <span class="col-name">order_id</span>
+        <span class="col-type">INT, PK</span>
+        <div><div class="col-sample">10482</div><div class="inline-hint">Первичный ключ — всё в порядке, проблема не здесь.</div></div>
+      </div>
+
+      <div class="col-block" data-correct="false" onclick="handleClick(this)">
+        <span class="col-name">customer_id</span>
+        <span class="col-type">INT, FK</span>
+        <div><div class="col-sample">305</div><div class="inline-hint">Корректная ссылка на таблицу Customers — проблема не здесь.</div></div>
+      </div>
+
+      <div class="col-block" data-correct="false" onclick="handleClick(this)">
+        <span class="col-name">customer_email_snapshot</span>
+        <span class="col-type">VARCHAR(255)</span>
+        <div><div class="col-sample">a.ivanova@mail.ru</div><div class="inline-hint">Это осознанное дублирование — «снимок» email на момент заказа, а не случайная избыточность. Проблема не здесь.</div></div>
+      </div>
+
+      <div class="col-block" data-correct="false" onclick="handleClick(this)">
+        <span class="col-name">customer_full_name</span>
+        <span class="col-type">VARCHAR(200)</span>
+        <div><div class="col-sample">Иванова Анна Сергеевна</div><div class="inline-hint">Хранить ФИО одной строкой — вопрос соглашений, а не нарушение атомарности: это одно цельное значение, а не список. Проблема не здесь.</div></div>
+      </div>
+
+      <div class="col-block" data-correct="false" onclick="handleClick(this)">
+        <span class="col-name">delivery_address_id</span>
+        <span class="col-type">INT, FK</span>
+        <div><div class="col-sample">1187</div><div class="inline-hint">Корректная ссылка на отдельную таблицу адресов — проблема не здесь.</div></div>
+      </div>
+
+      <div class="col-block" data-correct="true" onclick="handleClick(this)">
+        <span class="col-name">product_ids</span>
+        <span class="col-type">VARCHAR(500)</span>
+        <div><div class="col-sample">101,205,344</div></div>
+      </div>
+
+      <div class="col-block" data-correct="false" onclick="handleClick(this)">
+        <span class="col-name">total_price</span>
+        <span class="col-type">DECIMAL(10,2)</span>
+        <div><div class="col-sample">3240.00</div><div class="inline-hint">Обычное числовое поле — проблема не здесь.</div></div>
+      </div>
+
+      <div class="col-block" data-correct="false" onclick="handleClick(this)">
+        <span class="col-name">status</span>
+        <span class="col-type">VARCHAR(20)</span>
+        <div><div class="col-sample">paid</div><div class="inline-hint">Одно значение из небольшого набора статусов — проблема не здесь.</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <span class="attempts" id="attempts-label">Попыток: 0</span>
+    <button class="btn" onclick="giveUp()">Показать разбор</button>
+  </div>
+
+  <div class="reveal" id="reveal">
+    <div class="reveal-card">
+      <div class="reveal-label">✓ Проблема найдена — product_ids</div>
+      <p class="reveal-text">
+        В одном текстовом поле хранится список ID товаров через запятую — это нарушение
+        первой нормальной формы: значение поля должно быть атомарным, а не содержать
+        несколько значений сразу. На практике это означает, что нельзя построить обычный
+        запрос «все заказы с товаром X» без разбора строки на стороне приложения, нельзя
+        связать это поле внешним ключом с таблицей Products, и невозможно хранить
+        количество каждого товара в заказе отдельно.
+      </p>
+      <div class="fix-box was">
+        <div class="label">Было</div>
+        Orders.product_ids = "101,205,344" — список товаров в одной текстовой колонке.
+      </div>
+      <div class="fix-box now">
+        <div class="label">Как поправить</div>
+        Вынести в отдельную таблицу OrderItems (order_id, product_id, quantity) —
+        по одной строке на каждый товар в заказе, со связью по внешнему ключу.
+      </div>
+      <p class="lesson-ref">
+        Разбирается в модуле SA-I-006 (хранение и обработка данных), в блоке про
+        нормализацию и первую нормальную форму. Обратите внимание: соседние поля
+        (customer_email_snapshot, customer_full_name) внешне тоже можно заподозрить
+        в «неправильности», но это не нарушения нормализации — важно различать
+        осознанную избыточность и нечитаемый список значений в одном поле.
+      </p>
+      <div class="footer-btn">
+        <button class="btn primary" onclick="location.reload()">Попробовать ещё раз</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let attempts = 0;
+let solved = false;
+
+function handleClick(el){
+  if(solved) return;
+  attempts++;
+  document.getElementById('attempts-label').textContent = `Попыток: ${attempts}`;
+  document.querySelectorAll('.col-block').forEach(b => b.classList.remove('wrong-flash'));
+
+  if(el.dataset.correct === 'true'){
+    solved = true;
+    el.classList.add('correct');
+    document.querySelectorAll('.col-block').forEach(b => { b.style.cursor='default'; b.classList.add('locked'); });
+    document.getElementById('reveal').style.display = 'block';
+    document.getElementById('reveal').scrollIntoView({behavior:'smooth', block:'nearest'});
+  } else {
+    el.classList.add('wrong-flash');
+  }
+}
+
+function giveUp(){
+  if(solved) return;
+  solved = true;
+  document.querySelectorAll('.col-block').forEach(b => {
+    b.classList.remove('wrong-flash');
+    if(b.dataset.correct === 'true') b.classList.add('correct');
+  });
+  document.getElementById('reveal').style.display = 'block';
+  document.getElementById('reveal').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+</script>
+</body>
+</html>
